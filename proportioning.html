@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Price Calculation Table</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css" rel="stylesheet">
+    <style>
+        .input-field {
+            width: 100px;
+        }
+        .total-input {
+            width: 150px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Price Calculation Table</h1>
+        <div class="mb-3">
+            <label for="discount" class="form-label">Discount:</label>
+            <input type="number" class="form-control" id="discount" placeholder="Enter discount">
+        </div>
+        <div class="mb-3">
+            <label for="vat" class="form-label">VAT (%):</label>
+            <input type="number" class="form-control" id="vat" placeholder="Enter VAT percentage">
+        </div>
+        <button id="addRow" class="btn btn-primary mb-3">Add Row</button>
+        <table id="priceTable" class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>Quantity</th>
+                    <th>Old Unit Price</th>
+                    <th>Subtotal (Old)</th>
+                    <th>VAT (Old)</th>
+                    <th>Total Cost Before Discount</th>
+                    <th>Proportional Discount</th>
+                    <th>New Total Cost</th>
+                    <th>New Unit Price</th>
+                    <th>Subtotal (New)</th>
+                    <th>VAT (New)</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows will be added dynamically -->
+            </tbody>
+        </table>
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <label for="totalOldPrice" class="form-label">Total Old Price:</label>
+                <input type="number" class="form-control total-input" id="totalOldPrice" readonly>
+            </div>
+            <div class="col-md-6">
+                <label for="totalNewPrice" class="form-label">Total New Price:</label>
+                <input type="number" class="form-control total-input" id="totalNewPrice" readonly>
+            </div>
+            <div class="col-md-6 mt-3">
+                <label for="totalOldVAT" class="form-label">Total Old VAT:</label>
+                <input type="number" class="form-control total-input" id="totalOldVAT" readonly>
+            </div>
+            <div class="col-md-6 mt-3">
+                <label for="totalNewVAT" class="form-label">Total New VAT:</label>
+                <input type="number" class="form-control total-input" id="totalNewVAT" readonly>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            let table = $('#priceTable').DataTable({
+                paging: false,
+                searching: false,
+                info: false
+            });
+
+            function updateTotals() {
+                let totalCostBeforeDiscount = 0;
+                let totalNewCost = 0;
+                let discount = parseFloat($('#discount').val()) || 0;
+                let vat = parseFloat($('#vat').val()) || 0;
+                let totalProportionalDiscount = 0;
+                let totalOldVAT = 0;
+                let totalNewVAT = 0;
+
+                table.rows().every(function() {
+                    let row = $(this.node());
+                    let quantity = parseFloat(row.find('.quantity').val()) || 0;
+                    let oldPrice = parseFloat(row.find('.old-price').val()) || 0;
+
+                    let totalCost = quantity * oldPrice;
+                    let oldVAT = (totalCost * vat) / 100;
+                    totalOldVAT += oldVAT;
+                    totalCostBeforeDiscount += totalCost;
+
+                    row.find('.total-cost').text(totalCost.toFixed(2));
+                    row.find('.subtotal-old').text(totalCost.toFixed(2));
+                    row.find('.vat-old').text(oldVAT.toFixed(2));
+                });
+
+                table.rows().every(function() {
+                    let row = $(this.node());
+                    let totalCost = parseFloat(row.find('.total-cost').text()) || 0;
+
+                    let proportionalDiscount = (totalCost / totalCostBeforeDiscount) * discount;
+                    totalProportionalDiscount += proportionalDiscount;
+
+                    let newTotalCost = totalCost - proportionalDiscount;
+                    let quantity = parseFloat(row.find('.quantity').val()) || 0;
+                    let newUnitPrice = newTotalCost / quantity;
+
+                    let subtotalNew = quantity * newUnitPrice;
+                    let newVAT = (subtotalNew * vat) / 100;
+                    totalNewVAT += newVAT;
+                    totalNewCost += subtotalNew;
+
+                    row.find('.proportional-discount').text(proportionalDiscount.toFixed(2));
+                    row.find('.new-total-cost').text(newTotalCost.toFixed(2));
+                    row.find('.new-unit-price').text(newUnitPrice.toFixed(2));
+                    row.find('.subtotal-new').text(subtotalNew.toFixed(2));
+                    row.find('.vat-new').text(newVAT.toFixed(2));
+                });
+
+                $('#totalOldPrice').val(totalCostBeforeDiscount.toFixed(2));
+                $('#totalNewPrice').val(totalNewCost.toFixed(2));
+                $('#totalOldVAT').val(totalOldVAT.toFixed(2));
+                $('#totalNewVAT').val(totalNewVAT.toFixed(2));
+            }
+
+            $('#addRow').on('click', function() {
+                table.row.add([
+                    '<input type="number" class="form-control quantity input-field" placeholder="Quantity">',
+                    '<input type="number" class="form-control old-price input-field" placeholder="Old Unit Price">',
+                    '<span class="subtotal-old">0.00</span>',
+                    '<span class="vat-old">0.00</span>',
+                    '<span class="total-cost">0.00</span>',
+                    '<span class="proportional-discount">0.00</span>',
+                    '<span class="new-total-cost">0.00</span>',
+                    '<span class="new-unit-price">0.00</span>',
+                    '<span class="subtotal-new">0.00</span>',
+                    '<span class="vat-new">0.00</span>',
+                    '<button class="btn btn-danger btn-sm delete-row">Delete</button>'
+                ]).draw(false);
+            });
+
+            $('#priceTable tbody').on('input', '.quantity, .old-price', function() {
+                updateTotals();
+            });
+
+            $('#priceTable tbody').on('click', '.delete-row', function() {
+                table.row($(this).parents('tr')).remove().draw();
+                updateTotals();
+            });
+
+            $('#discount, #vat').on('input', function() {
+                updateTotals();
+            });
+        });
+    </script>
+</body>
+</html>
